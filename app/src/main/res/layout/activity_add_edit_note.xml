@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:orientation="vertical"
+    tools:context=".ui.addEditNote.AddEditNoteActivity">
+
+    <EditText
+        android:id="@+id/et_desc"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:gravity="start"
+        android:hint="@string/description"
+        android:inputType="textMultiLine"
+        android:importantForAutofill="no"
+        style="@style/EditTextNoUnderline"/>
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="8dp" />
+
+    <TextView
+        android:id="@+id/tvPriority"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        tools:text="@string/priority"
+        android:textAppearance="@android:style/TextAppearance.Medium"/>
+
+    <com.google.android.material.slider.Slider
+        android:id="@+id/sliderPriority"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:valueFrom="1.0"
+        android:valueTo="10.0"
+        android:stepSize="1.0"  />
+
+</LinearLayout>

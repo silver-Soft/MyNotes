@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">MyNotes</string>
+
+    <string name="titulo">Título</string>
+    <string name="description">Nota</string>
+    <string name="priority">Prioridad</string>
+    <string name="save">Guardar</string>
+    <string name="delete_all_notes">Vaciar notas</string>
+    <string name="search_notes">Buscar nota</string>
+    <string name="settings">Ajustes</string>
+
+    <string name="textInView">%s</string>
 </resources>

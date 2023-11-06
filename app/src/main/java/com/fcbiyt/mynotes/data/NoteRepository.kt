@@ -6,29 +6,25 @@ import com.fcbiyt.mynotes.core.subscribeOnBackground
 import com.fcbiyt.mynotes.data.database.NoteDatabase
 import com.fcbiyt.mynotes.data.database.dao.NoteDao
 import com.fcbiyt.mynotes.data.database.entities.NoteEntity
+import com.fcbiyt.mynotes.data.dto.NewNote
+import com.fcbiyt.mynotes.data.model.NoteModel
+import com.fcbiyt.mynotes.data.network.NoteService
+import org.json.JSONObject
 
-/**
- *El repositorio actua como intermediario entre dos de las capas de MVVM, con la capa de datos y con la UI
- */
-class NoteRepository(application: Application) {//Se indica que esta clase tomara una instancia de Application
-            //Esto quiere decuir que la clase esta diseñada para se utilizada en el contexto de la aplicación
+class NoteRepository(application: Application) {
 
-    private var noteDao: NoteDao // Se crea una instancia de NoteDao que se utilizará para realizar operaciones en la base de datos.
+    private var noteDao: NoteDao
 
-    private val database = NoteDatabase.getInstance(application)//Aquí se crea una instancia de NoteDatabase utilizando el método getInstance y
-                                                // pasando la aplicación como contexto. Esto establece una conexión con la base de datos local.
-
-    init {
-        /**
-         * Se inicializa la variable noteDao asignándole una instancia de NoteDao a partir de la instancia de NoteDatabase.
-         * Esto prepara noteDao para interactuar con la base de datos.
-         */
-        noteDao = database.noteDao()
-    }
+    private val database = NoteDatabase.getInstance(application)
 
     /**
-     * A continuacion se definen los metodos que realizarán las operaciones a la BD por medio de NoteDao
+     * Crear instancia del NoteService para obtener las repuestas de api
      */
+    private val api = NoteService()
+
+    init {
+        noteDao = database.noteDao()
+    }
     fun insert(note: NoteEntity) {
         subscribeOnBackground {
             noteDao.insert(note)
@@ -52,13 +48,28 @@ class NoteRepository(application: Application) {//Se indica que esta clase tomar
             noteDao.deleteAllNotes()
         }
     }
-    //La siguiente funcion se extiende del tipo LiveData lo que permite a las vistas observar los cambios
-    // en la lista de notas de forma reactiva realTime.
     fun getAllNotes(): LiveData<List<NoteEntity>> {
         return noteDao.getAllNotes()
     }
 
     /**
      * A continuacion se definen los metodos que realizarán las consultas al API
+     * Estas funciones como se ejecutan en corrutinas deben ser funciones suspendidas
+     * o asincronas
      */
+    suspend fun getAllNotesFromApi(): LiveData<List<NoteModel>> {
+        return api.getNotes()
+    }
+    suspend fun saveNoteOnApi(body: NewNote, url: String): JSONObject? {
+        return api.createNote(body,url)
+    }
+    suspend fun updateNoteOnApi(body: NewNote, url: String): JSONObject? {
+        return api.updateNote(body,url)
+    }
+    suspend fun deleteNoteOnApi(url: String): JSONObject? {
+        return api.deleteNote(url)
+    }
+    suspend fun deleteAllNotesOnApi(url: String): JSONObject? {
+        return api.deleteAllNotes(url)
+    }
 }

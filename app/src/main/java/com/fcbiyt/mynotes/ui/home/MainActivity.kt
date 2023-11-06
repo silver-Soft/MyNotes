@@ -12,7 +12,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.fcbiyt.mynotes.R
+import com.fcbiyt.mynotes.core.NetworkUtils
 import com.fcbiyt.mynotes.data.database.entities.NoteEntity
+import com.fcbiyt.mynotes.data.dto.NewNote
 import com.fcbiyt.mynotes.databinding.ActivityMainBinding
 import com.fcbiyt.mynotes.ui.NoteViewModel
 import com.fcbiyt.mynotes.ui.addEditNote.AddEditNoteActivity
@@ -25,6 +27,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 const val ADD_NOTE_REQUEST = 1
 const val EDIT_NOTE_REQUEST = 2
@@ -35,6 +39,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: NoteAdapter
 
     private val miCoroutineScope = CoroutineScope(Dispatchers.IO)
+
+    /**
+     * Importar el NetworkUtils para validar conexion
+     */
+    private val networkUtils = NetworkUtils(this)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -44,20 +53,8 @@ class MainActivity : AppCompatActivity() {
 
         setUpListeners()
 
-        /**
-         Crear una instancia del ViewModel y asociarla a nuestro componente MainActivity
-         y especificar el tipo de viewModel que queremos obtener o crear, en este caso NoteVieModel
-        */
         vm = ViewModelProvider(this)[NoteViewModel::class.java]
 
-        /**
-         Accedemos al metodo getAllNotes de nuestro vm que nos retorna un LiveData de las notas locales
-
-         Recordemos que su camino para acceder a la informacion es:
-         NoteViewModel(Interaccion con la UI) -> NoteRepository(Interaccion con fuente de datos) -> NoteDao(CONSULTAS SQL)
-
-         Finalmente usamos submitList para mostrar la lista obtenida en la vista UI
-        */
         vm.getAllNotes().observe(this) {localNotes ->
             adapter.submitList(localNotes)
         }
@@ -81,8 +78,11 @@ class MainActivity : AppCompatActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val note = adapter.getNoteAt(viewHolder.adapterPosition)
+                vm.delete(note)
                 miCoroutineScope.launch {
-                    vm.delete(note)
+                    if(networkUtils.isNetworkAvailable()){
+                        deleteNoteOnCloud(note.id)
+                    }
                 }
             }
 
@@ -90,14 +90,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setUpRecyclerView() {
-        //Definir el layoutManager para indicar la disposicion de los elementos
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
-        //Indicar que el recyclerview tendra una tamaño fijo no dinamico y optimizar el renderizado
         binding.recyclerView.setHasFixedSize(true)
-
-        //Pasar la funcion lambda que recibe como parametro nuestro adapter para un evento clic de
-        // cada elemento de la lista y pasamos los extras a las constantes definidas en nuestro
-        //activity destino
         adapter = NoteAdapter { clickedNote ->
             val intent = Intent(this, AddEditNoteActivity::class.java)
             intent.putExtra(EXTRA_ID, clickedNote.id)
@@ -106,7 +100,6 @@ class MainActivity : AppCompatActivity() {
             intent.putExtra(EXTRA_PRIORITY, clickedNote.priority)
             startActivityForResult(intent, EDIT_NOTE_REQUEST)
         }
-        //Finalmente asignamos nuestro adapter personalizado al adapter del recyclerview
         binding.recyclerView.adapter = adapter
     }
 
@@ -119,7 +112,36 @@ class MainActivity : AppCompatActivity() {
                 data.getStringExtra(EXTRA_DESCRIPTION)!!
             val priority: Int = data.getIntExtra(EXTRA_PRIORITY, -1)
             miCoroutineScope.launch {
-                vm.insertAndGetId(NoteEntity(title, description, priority))
+                /**
+                 * Obtener el id que retorna insertAndGetId para enviarlo al API de guardar nueva nota
+                 * ya con el id que se le asigno localmente
+                 */
+                val insertedId = vm.insertAndGetId(NoteEntity(title, description, priority))
+
+                if (insertedId > 0) {
+                    // Aquí puedes usar el ID que se ha insertado en la base de datos.
+                    val body = NewNote(
+                        data.getStringExtra(EXTRA_TITLE)!!,
+                        data.getStringExtra(EXTRA_DESCRIPTION)!!,
+                        data.getIntExtra(EXTRA_PRIORITY, -1)
+                    )
+                    if(networkUtils.isNetworkAvailable()){
+                        saveNoteOnCloud(body,insertedId)
+                    }else{
+                        /**
+                         * Si no hay conexion a internet se pueden guardar las notas no sincronizadas
+                         * en una nueva tabla por ejemplo not_sync_notes_table
+                         * para posteriormente en un nuevo ingreso a la app verificar si existen notas
+                         * en esta tabla, de ser asi subir cada una de ellas recorriendo la lista de notas
+                         * de esta tabla con el metodo
+
+                                    saveNoteOnCloud(body,insertedId)
+
+                         *Asegurate de vacíar esta tabla una vez sincronizadas las notas que habia en ella.
+                         */
+                    }
+                    Snackbar.make(binding.root, "Nota insertada", Snackbar.LENGTH_SHORT).show()
+                }
             }
         }
         else if(data != null && requestCode == EDIT_NOTE_REQUEST && resultCode == Activity.RESULT_OK) {
@@ -135,14 +157,60 @@ class MainActivity : AppCompatActivity() {
             miCoroutineScope.launch {
                 vm.update(NoteEntity(title, description, priority, id))
             }
+            if(networkUtils.isNetworkAvailable()){
+                val body = NewNote(
+                    data.getStringExtra(EXTRA_TITLE)!!,
+                    data.getStringExtra(EXTRA_DESCRIPTION)!!,
+                    data.getIntExtra(EXTRA_PRIORITY, -1)
+                )
+                miCoroutineScope.launch {
+                    updateNoteOnCloud(body,id)
+                    /**
+                     * Aqui podemos cachar excepciones de guardado del API y mostrar un mensaje
+                     * de a cuerdo a la respuesta
+                     */
+                }
+            }else{
+                /**
+                 * Si no hay conexion a internet se pueden guardar las notas no sincronizadas
+                 * en una nueva tabla por ejemplo not_sync_notes_table
+                 * para posteriormente en un nuevo ingreso a la app verificar si existen notas
+                 * en esta tabla, de ser asi subir cada una de ellas recorriendo la lista de notas
+                 * de esta tabla con el metodo
 
-            Snackbar.make(binding.root, "Nota actualizada", Snackbar.LENGTH_SHORT).show()
+                                updateNoteOnCloud(body,id)
+
+                 *Asegurate de vacíar esta tabla una vez sincronizadas las notas que habia en ella.
+                 */
+            }
+
+            Snackbar.make(binding.root, "Nota actualizada!", Snackbar.LENGTH_SHORT).show()
 
         } else {
             Snackbar.make(binding.root, "Nota no guardada", Snackbar.LENGTH_SHORT).show()
         }
     }
 
+
+    /**
+     * Crear las suspend fun para llamar a los metodos del ViewModel que operan con el API
+     */
+    private suspend fun saveNoteOnCloud(body: NewNote, idNote: Number): JSONObject? = withContext(Dispatchers.IO) {
+        val result = vm.saveNoteOnCloud(body, "notes/$idNote")
+        result
+    }
+    private suspend fun updateNoteOnCloud(body: NewNote, idNote: Number): JSONObject? = withContext(Dispatchers.IO) {
+        val result = vm.updateNoteOnCloud(body, "notes/$idNote")
+        result
+    }
+    private suspend fun deleteNoteOnCloud(idNote: Number): JSONObject? = withContext(Dispatchers.IO) {
+        val result = vm.deleteNoteOnCloud("notes/$idNote")
+        result
+    }
+    private suspend fun deleteAllNotesOnCloud(): JSONObject? = withContext(Dispatchers.IO) {
+        val result = vm.deleteAllNotesOnCloud("notes")
+        result
+    }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         val menuInflater = menuInflater
@@ -153,8 +221,11 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.delete_all_notes -> {
+                vm.deleteAllNotes()
                 miCoroutineScope.launch {
-                    vm.deleteAllNotes()
+                    if(networkUtils.isNetworkAvailable()){
+                        deleteAllNotesOnCloud()
+                    }
                 }
                 Toast.makeText(this, "Se han eliminado todas las notas", Toast.LENGTH_SHORT).show()
                 return true
@@ -163,17 +234,6 @@ class MainActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    /**
-     * Importante!! Al utilizar corrutinas entendemos que los procesos que se llevan a cabo
-     * dentro de ellas se ejecutan en un hilo secundario, por lo que si nosotros por alguna
-     * razon iniciamos una corrutina en un activity y en seguida pasamos a otro activity y aun
-     * no ha finalizado nuestra corrutina iniciada en el activity anterior, si hay algun dato
-     * que deba renderizarse dentro de la corrutina, causará un error que cerrará la aplicacion
-     * por que el elemento de UI sobre el que la informacion retornada por la corrutina necesita
-     * renderizarse ya no existe en la vista actual.
-     *
-     * esto aplica para componentes visuales o contexto.
-     */
     override fun onDestroy() {
         miCoroutineScope.cancel()
         super.onDestroy()

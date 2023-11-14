@@ -25,13 +25,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-
+//Definir los estados de solicitud
 const val ADD_NOTE_REQUEST = 1
 const val EDIT_NOTE_REQUEST = 2
 class MainActivity : AppCompatActivity() {
     private lateinit var binding : ActivityMainBinding
 
+    //Instanciamos nuestro viewModel
     private lateinit var vm: NoteViewModel
+
+    //Crespues de crearlo se instancia el adapter
     private lateinit var adapter: NoteAdapter
 
     private val miCoroutineScope = CoroutineScope(Dispatchers.IO)

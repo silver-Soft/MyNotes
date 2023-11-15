@@ -8,14 +8,17 @@ import com.fcbiyt.mynotes.data.database.dao.NoteDao
 import com.fcbiyt.mynotes.data.database.entities.NoteEntity
 
 /**
- *El repositorio actua como intermediario entre dos de las capas de MVVM, con la capa de datos y con la UI
+ *El repositorio actua como intermediario
+ * entre dos de las capas de MVVM, con la capa de datos y con la UI
  */
 
 //Se indica que esta clase tomara una instancia de Application
-//Esto quiere decuir que la clase esta diseñada para se utilizada en el contexto de la aplicación
+//Esto quiere decuir que la clase esta diseñada para se utilizada
+// en el contexto de la aplicación
 class NoteRepository(application: Application) {
 
-    // Se crea una instancia de NoteDao que se utilizará para realizar operaciones en la base de datos.
+    // Se crea una instancia de NoteDao que se utilizará para realizar
+    // operaciones en la base de datos.
     private var noteDao: NoteDao
 
     //Aquí se crea una instancia de NoteDatabase utilizando el método getInstance y
@@ -34,11 +37,11 @@ class NoteRepository(application: Application) {
     /**
      * A continuacion se definen los metodos que realizarán las operaciones a la BD por medio de NoteDao
      */
-    /*fun insert(note: NoteEntity) {
+    fun insert(note: NoteEntity) {
         subscribeOnBackground {
             noteDao.insert(note)
         }
-    }*/
+    }
     fun insertGetId(note: NoteEntity): Long {
         return noteDao.insert(note)
     }

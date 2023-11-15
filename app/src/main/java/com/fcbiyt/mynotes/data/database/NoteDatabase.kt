@@ -28,7 +28,8 @@ abstract class NoteDatabase : RoomDatabase() {
     // de acceso a la base de datos
     abstract fun noteDao(): NoteDao
     companion object {
-        private var instance: NoteDatabase? = null //Obtenemos una instancia de NoteDatabase
+        //Obtenemos una instancia de NoteDatabase y la inicializamos en null
+        private var instance: NoteDatabase? = null
 
         @Synchronized //@Synchronized se utiliza para garantizar que esta operación sea segura en entornos con múltiples hilos.
         //Obtenemos una instancia de NoteDatabase. Si ya existe una instancia,

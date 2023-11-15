@@ -19,7 +19,7 @@ import com.fcbiyt.mynotes.data.database.entities.NoteEntity
 @Dao
 interface NoteDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insert(note: NoteEntity): Long
+    fun insert(note: NoteEntity): Long//<-Debuelve un valor de tipo Long devuelve un id de la fila insertada
 
     @Update
     fun update(note: NoteEntity)

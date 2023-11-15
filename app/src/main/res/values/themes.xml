@@ -37,11 +37,6 @@
         <item name="titleTextColor">@color/md_theme_light_onPrimary</item>
     </style>
 
-    <style name="ThemeOverlay.App.FloatingActionButton" parent="">
-        <item name="backgroundTint">@color/seed</item>
-        <item name="iconTint">@color/md_theme_light_onPrimary</item>
-        <item name="android:textColor">@color/md_theme_light_onPrimary</item>
-    </style>
 
     <style name="EditTextNoUnderline" parent="Widget.AppCompat.EditText">
         <item name="android:background">@null</item>
